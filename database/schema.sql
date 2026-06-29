@@ -22,6 +22,22 @@ CREATE TABLE IF NOT EXISTS interactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Table des paramètres de chauffe
+CREATE TABLE IF NOT EXISTS warmup_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    start_vol INTEGER DEFAULT 2,
+    increment INTEGER DEFAULT 1,
+    max_vol INTEGER DEFAULT 40,
+    weekend BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_warmup_settings_updated_at
+    BEFORE UPDATE ON warmup_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Index pour accélérer les requêtes
 CREATE INDEX idx_interactions_sender ON interactions(sender_id);
 CREATE INDEX idx_interactions_receiver ON interactions(receiver_id);

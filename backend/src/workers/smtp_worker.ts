@@ -49,8 +49,12 @@ export async function sendEmail(data: SmtpJobData) {
         finalBody = generated.body;
     }
 
+    const firstNames = ['Thomas', 'Marie', 'Nicolas', 'Camille', 'Julien', 'Sophie', 'Pierre', 'Claire', 'Antoine', 'Laura', 'Maxime', 'Lucie'];
+    const lastNames  = ['Martin', 'Bernard', 'Dubois', 'Robert', 'Richard', 'Simon', 'Laurent', 'Michel', 'Garcia', 'David', 'Petit', 'Moreau'];
+    const displayName = `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+
     const info = await transporter.sendMail({
-        from: `"Braise Network" <${data.senderEmail}>`,
+        from: `"${displayName}" <${data.senderEmail}>`,
         to: data.receiverEmail,
         subject: finalSubject,
         text: finalBody,

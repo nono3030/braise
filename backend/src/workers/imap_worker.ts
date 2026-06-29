@@ -39,9 +39,18 @@ export async function processImapInbox(data: ImapJobData) {
     try {
         await client.connect();
 
-        // Dossiers à fouiller : INBOX et Spam
-        const foldersToSearch = ['INBOX', '[Gmail]/Spam', 'Spam', 'Junk'];
+        // Dossiers à fouiller : INBOX, onglets Gmail, Spam
+        const foldersToSearch = [
+            'INBOX',
+            '[Gmail]/Spam',
+            '[Gmail]/Promotions',
+            '[Gmail]/Social',
+            '[Gmail]/Updates',
+            'Spam',
+            'Junk',
+        ];
         let emailFound = false;
+        let foundInFolder: string | null = null;
         // Données pour la réponse éventuelle (envoyée APRÈS déconnexion IMAP)
         let pendingReply: { fromEmail: string; subject: string; messageId: string } | null = null;
 
@@ -69,9 +78,9 @@ export async function processImapInbox(data: ImapJobData) {
                             { headers: ['x-braise-id', 'message-id', 'subject', 'from'] },
                             { uid: true }
                         );
-                        const raw = msg?.headers instanceof Buffer
+                        const raw = (msg && msg.headers instanceof Buffer)
                             ? msg.headers.toString('utf-8')
-                            : String(msg?.headers || '');
+                            : String((msg && msg.headers) || '');
                         if (raw.toLowerCase().includes(data.interactionId.toLowerCase())) {
                             targetUid = uid;
                             break;
@@ -90,9 +99,9 @@ export async function processImapInbox(data: ImapJobData) {
                         );
 
                         // Parser les headers (Buffer brut)
-                        const rawHeaders = msg2?.headers instanceof Buffer
+                        const rawHeaders = (msg2 && msg2.headers instanceof Buffer)
                             ? msg2.headers.toString('utf-8')
-                            : String(msg2?.headers || '');
+                            : String((msg2 && msg2.headers) || '');
 
                         const getHeader = (raw: string, name: string): string => {
                             const match = raw.match(new RegExp(`^${name}:\\s*(.+)`, 'im'));
@@ -105,13 +114,31 @@ export async function processImapInbox(data: ImapJobData) {
                         const fromEmailMatch = fromStr.match(/<([^>]+)>/) || [null, fromStr.trim()];
                         const fromEmail = fromEmailMatch[1] || fromStr.trim();
 
-                        // Appliquer les flags via l'UID (STORE UID)
-                        const flagsToAdd = ['\\Seen'];
+                        const isSpam    = folder.toLowerCase().includes('spam') || folder.toLowerCase().includes('junk');
+                        const isTab     = folder.includes('Promotions') || folder.includes('Social') || folder.includes('Updates');
                         const isFlagged = Math.random() < 0.5;
-                        if (isFlagged) flagsToAdd.push('\\Flagged');
 
-                        await client.messageFlagsAdd(String(targetUid), flagsToAdd, { uid: true });
-                        console.log(`[IMAP Worker] ✅ Action: Marqué 'Lu' (Seen)${isFlagged ? " et 'Important' (Flagged)" : ""}.`);
+                        // Flaguer Seen d'abord (UID encore valide dans le dossier courant)
+                        await client.messageFlagsAdd(String(targetUid), ['\\Seen'], { uid: true });
+
+                        // Délai humain entre Seen et Flagged (3–15s)
+                        if (isFlagged) {
+                            const humanDelay = 3_000 + Math.random() * 12_000;
+                            await new Promise(r => setTimeout(r, humanDelay));
+                            await client.messageFlagsAdd(String(targetUid), ['\\Flagged'], { uid: true });
+                        }
+
+                        // Déplacer vers INBOX APRÈS les flags (UID toujours valide ici)
+                        if (isSpam || isTab) {
+                            try {
+                                await client.messageMove(String(targetUid), 'INBOX', { uid: true });
+                                console.log(`[IMAP Worker] 📂 Déplacé de "${folder}" → INBOX.`);
+                            } catch (moveErr) {
+                                console.warn(`[IMAP Worker] ⚠️  Impossible de déplacer vers INBOX:`, moveErr);
+                            }
+                        }
+
+                        console.log(`[IMAP Worker] ✅ Seen${isFlagged ? ' + Flagged (délai humain)' : ''}${isSpam ? ' + sorti du Spam' : isTab ? ' + sorti des onglets' : ''}.`);
                         console.log(`[IMAP Worker] 📋 Message-ID: ${messageId || '(non trouvé)'}`);
                         console.log(`[IMAP Worker] 📋 Sujet: ${subject}`);
                         console.log(`[IMAP Worker] 📋 De: ${fromEmail || '(non trouvé)'}`);
@@ -123,6 +150,7 @@ export async function processImapInbox(data: ImapJobData) {
                         }
 
                         emailFound = true;
+                        foundInFolder = folder;
                     } else {
                         console.log(`[IMAP Worker] ❌ Introuvable dans ${folder}.`);
                     }
@@ -160,7 +188,7 @@ export async function processImapInbox(data: ImapJobData) {
             }
         }
 
-        return emailFound;
+        return { found: emailFound, folder: foundInFolder };
     } catch (error) {
         console.error('[IMAP Worker] Erreur:', error);
         throw error;

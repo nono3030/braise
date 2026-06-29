@@ -2,10 +2,36 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import Link from 'next/link';
 
 export default async function Boxes() {
-  const { data: accounts } = await supabaseAdmin.from('accounts').select('*').order('created_at', { ascending: false });
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [
+    { data: accounts },
+    { count: emailCount30d },
+    { data: interactions },
+  ] = await Promise.all([
+    supabaseAdmin.from('accounts').select('*').order('created_at', { ascending: false }),
+    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
+    supabaseAdmin.from('interactions').select('sender_id, receiver_id, status_detected').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
+  ]);
 
   const activeCount = accounts?.filter(a => a.status === 'active').length ?? 0;
   const total = accounts?.length ?? 0;
+
+  // Score par boîte : % inbox sur les interactions résolues où elle est sender ou receiver
+  function scoreForAccount(accountId: string): number {
+    const accountInteractions = interactions?.filter(
+      r => r.sender_id === accountId || r.receiver_id === accountId
+    ) ?? [];
+    if (accountInteractions.length === 0) return 0;
+    const inboxCount = accountInteractions.filter(r => r.status_detected === 'Inbox').length;
+    return Math.round((inboxCount / accountInteractions.length) * 100);
+  }
+
+  // Score moyen global
+  const resolved = interactions?.length ?? 0;
+  const inboxTotal = interactions?.filter(r => r.status_detected === 'Inbox').length ?? 0;
+  const avgScore = resolved > 0 ? Math.round((inboxTotal / resolved) * 100) : 0;
 
   const colors = ['#E5853C', '#2FA572', '#6E84D6', '#D95F8B', '#C09A6B'];
   const circ = 2 * Math.PI * 23;
@@ -21,9 +47,9 @@ export default async function Boxes() {
         {accounts?.map((account, i) => {
           const initials = account.email.slice(0, 2).toUpperCase();
           const color = colors[i % colors.length];
-          const score = 80 + (i * 7) % 20; // placeholder
-          const scoreDash = `${(score / 100) * circ} ${circ}`;
-          const ringColor = score >= 85 ? '#2FA572' : score >= 70 ? '#E5853C' : '#E15B47';
+          const score = scoreForAccount(account.id);
+          const scoreDash = score > 0 ? `${(score / 100) * circ} ${circ}` : `0 ${circ}`;
+          const ringColor = score >= 85 ? '#2FA572' : score >= 60 ? '#E5853C' : score > 0 ? '#E15B47' : '#E6E1D9';
           const isActive = account.status === 'active';
 
           return (
@@ -46,7 +72,7 @@ export default async function Boxes() {
                     <circle cx="30" cy="30" r="23" fill="none" stroke="#F1ECE4" strokeWidth="6" />
                     <circle cx="30" cy="30" r="23" fill="none" stroke={ringColor} strokeWidth="6" strokeLinecap="round" strokeDasharray={scoreDash} transform="rotate(-90 30 30)" />
                   </svg>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-jakarta)', fontWeight: 800, fontSize: '14px', color: '#241F1B' }}>{score}%</div>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-jakarta)', fontWeight: 800, fontSize: '14px', color: '#241F1B' }}>{score > 0 ? `${score}%` : '—'}</div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '11.5px', color: '#857C71' }}>Score de délivrabilité</div>
@@ -79,8 +105,8 @@ export default async function Boxes() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginTop: '16px' }}>
         {[
           { label: 'Boîtes actives', value: `${activeCount}`, sub: `/ ${total}` },
-          { label: 'Score moyen du réseau', value: '85%', sub: '' },
-          { label: 'Emails échangés · 30 j', value: '0', sub: '' },
+          { label: 'Score moyen du réseau', value: resolved > 0 ? `${avgScore}%` : '—', sub: '' },
+          { label: 'Emails échangés · 30 j', value: `${emailCount30d ?? 0}`, sub: '' },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#fff', border: '1px solid #ECE7E0', borderRadius: '16px', padding: '20px 22px', boxShadow: '0 1px 2px rgba(40,28,16,0.04)' }}>
             <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '12px', color: '#857C71', marginBottom: '8px' }}>{stat.label}</div>
