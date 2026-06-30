@@ -16,6 +16,15 @@ export default function LoginPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
+    async function handleGoogleSignIn() {
+        setLoading(true);
+        setError('');
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: `${window.location.origin}/auth/callback` },
+        });
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -55,6 +64,28 @@ export default function LoginPage() {
                     <p style={{ margin: '0 0 28px', fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '13.5px', color: '#A89F94', textAlign: 'center' }}>
                         {mode === 'signin' ? 'Accédez à votre espace Braise' : 'Commencez à réchauffer vos emails'}
                     </p>
+
+                    {/* Google */}
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading}
+                        style={{ width: '100%', background: '#fff', border: '1px solid #E0DACE', color: '#3A332C', borderRadius: '12px', padding: '12px', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
+                            <path d="M43.6 20.5H42V20H24v8h11.3C33.6 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.4 6.5 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z" fill="#FFC107"/>
+                            <path d="M6.3 14.7l6.6 4.8C14.6 16 19 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.4 6.5 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" fill="#FF3D00"/>
+                            <path d="M24 44c5.3 0 10.1-2 13.7-5.3l-6.3-5.3C29.5 35.3 26.9 36 24 36c-5.3 0-9.6-3.1-11.3-7.5l-6.6 5.1C9.5 39.6 16.2 44 24 44z" fill="#4CAF50"/>
+                            <path d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.3 5.3C37.3 39.2 44 34 44 24c0-1.2-.1-2.4-.4-3.5z" fill="#1976D2"/>
+                        </svg>
+                        Continuer avec Google
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ flex: 1, height: '1px', background: '#EFEAE2' }} />
+                        <span style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '12px', color: '#B7AEA3' }}>ou</span>
+                        <div style={{ flex: 1, height: '1px', background: '#EFEAE2' }} />
+                    </div>
 
                     <form onSubmit={handleSubmit}>
                         <div style={{ marginBottom: '16px' }}>
