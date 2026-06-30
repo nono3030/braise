@@ -51,6 +51,8 @@ export async function processImapInbox(data: ImapJobData) {
         ];
         let emailFound = false;
         let foundInFolder: string | null = null;
+        let wasFlagged = false;
+        let replySent  = false;
         // Données pour la réponse éventuelle (envoyée APRÈS déconnexion IMAP)
         let pendingReply: { fromEmail: string; subject: string; messageId: string } | null = null;
 
@@ -116,13 +118,13 @@ export async function processImapInbox(data: ImapJobData) {
 
                         const isSpam    = folder.toLowerCase().includes('spam') || folder.toLowerCase().includes('junk');
                         const isTab     = folder.includes('Promotions') || folder.includes('Social') || folder.includes('Updates');
-                        const isFlagged = Math.random() < 0.5;
+                        wasFlagged = Math.random() < 0.5;
 
                         // Flaguer Seen d'abord (UID encore valide dans le dossier courant)
                         await client.messageFlagsAdd(String(targetUid), ['\\Seen'], { uid: true });
 
                         // Délai humain entre Seen et Flagged (3–15s)
-                        if (isFlagged) {
+                        if (wasFlagged) {
                             const humanDelay = 3_000 + Math.random() * 12_000;
                             await new Promise(r => setTimeout(r, humanDelay));
                             await client.messageFlagsAdd(String(targetUid), ['\\Flagged'], { uid: true });
@@ -138,7 +140,7 @@ export async function processImapInbox(data: ImapJobData) {
                             }
                         }
 
-                        console.log(`[IMAP Worker] ✅ Seen${isFlagged ? ' + Flagged (délai humain)' : ''}${isSpam ? ' + sorti du Spam' : isTab ? ' + sorti des onglets' : ''}.`);
+                        console.log(`[IMAP Worker] ✅ Seen${wasFlagged ? ' + Flagged (délai humain)' : ''}${isSpam ? ' + sorti du Spam' : isTab ? ' + sorti des onglets' : ''}.`);
                         console.log(`[IMAP Worker] 📋 Message-ID: ${messageId || '(non trouvé)'}`);
                         console.log(`[IMAP Worker] 📋 Sujet: ${subject}`);
                         console.log(`[IMAP Worker] 📋 De: ${fromEmail || '(non trouvé)'}`);
@@ -166,7 +168,7 @@ export async function processImapInbox(data: ImapJobData) {
             console.log(`[IMAP Worker] ❌ L'email avec l'ID ${data.interactionId} est introuvable après la recherche complète.`);
         }
 
-        await client.logout();
+        try { await client.logout(); } catch (_) { /* connexion déjà fermée */ }
 
         // Envoi de la réponse APRÈS déconnexion IMAP (évite le timeout croisé)
         if (pendingReply) {
@@ -182,13 +184,14 @@ export async function processImapInbox(data: ImapJobData) {
                     inReplyTo: pendingReply.messageId,
                     references: pendingReply.messageId,
                 });
+                replySent = true;
                 console.log(`[IMAP Worker] ✅ Réponse envoyée avec succès (Thread créé).`);
             } catch (replyErr) {
                 console.error(`[IMAP Worker] Erreur lors de l'envoi de la réponse:`, replyErr);
             }
         }
 
-        return { found: emailFound, folder: foundInFolder };
+        return { found: emailFound, folder: foundInFolder, wasFlagged, replySent };
     } catch (error) {
         console.error('[IMAP Worker] Erreur:', error);
         throw error;

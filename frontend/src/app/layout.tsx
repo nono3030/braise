@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`${jakarta.variable} ${mono.variable}`}>
+    <html lang="fr" className={`${jakarta.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
       </head>

@@ -92,7 +92,12 @@ async function runCycle(sender: Account, receiver: Account): Promise<void> {
         ? ((folder.includes('spam') || folder.includes('junk')) ? 'Spam' : 'Inbox')
         : 'NotFound';
 
-    await supabase.from('interactions').update({ status_detected: status }).eq('id', interactionId);
+    await supabase.from('interactions').update({
+        status_detected: status,
+        source_folder:   result.folder ?? null,
+        was_flagged:     result.wasFlagged ?? false,
+        reply_sent:      result.replySent  ?? false,
+    }).eq('id', interactionId);
     console.log(`[Worker] 📊 ${status} (dossier : ${result.folder ?? 'introuvable'})`);
 }
 
@@ -233,14 +238,34 @@ function scheduleNextRun(): void {
 
 // ---------- Démarrage ----------
 
+async function cleanupStalePending(): Promise<void> {
+    const cutoff = new Date(Date.now() - 10 * 60_000); // pending depuis > 10 min
+    const { data } = await supabase
+        .from('interactions')
+        .update({ status_detected: 'NotFound' })
+        .eq('status_detected', 'pending')
+        .lt('created_at', cutoff.toISOString())
+        .select('id');
+    if (data && data.length > 0) {
+        console.log(`[Scheduler] 🧹 ${data.length} interaction(s) pending bloquée(s) → NotFound.`);
+    }
+}
+
 async function main() {
     console.log('🔥 Braise Scheduler (sans Redis)');
     console.log(`   Fenêtre    : ${HOUR_START}h – ${HOUR_END}h`);
     console.log(`   Délai IMAP : ${IMAP_WAIT / 1000}s`);
     console.log(`   Paramètres : lus depuis Supabase (warmup_settings)\n`);
 
+    await cleanupStalePending();
     await scheduleDay();
     scheduleNextRun();
 }
+
+// Empêcher les erreurs résiduelles d'imapflow (NoConnection, ECONNRESET) de tuer le process
+process.on('uncaughtException', (err: any) => {
+    if (err?.code === 'NoConnection' || err?.code === 'ECONNRESET') return;
+    console.error('[Scheduler] ❌ Exception non capturée:', err.message);
+});
 
 main().catch(console.error);

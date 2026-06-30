@@ -14,16 +14,22 @@ export default async function Dashboard() {
     { data: recentInteractions },
     { data: interactions30d },
     { data: firstAccount },
+    { count: rescuedCount },
+    { count: flaggedCount },
+    { count: replyCount },
   ] = await Promise.all([
     supabaseAdmin.from('accounts').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
+    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
     supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Spam'),
     supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Inbox'),
     supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'NotFound'),
     supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).neq('status_detected', 'pending'),
-    supabaseAdmin.from('interactions').select('sender_id, receiver_id, status_detected, created_at').order('created_at', { ascending: false }).limit(8),
+    supabaseAdmin.from('interactions').select('sender:accounts!sender_id(email), receiver:accounts!receiver_id(email), status_detected, created_at').neq('status_detected', 'pending').order('created_at', { ascending: false }).limit(8),
     supabaseAdmin.from('interactions').select('status_detected, created_at').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
     supabaseAdmin.from('accounts').select('created_at').order('created_at', { ascending: true }).limit(1),
+    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).not('source_folder', 'ilike', '%inbox%').not('source_folder', 'is', null).neq('status_detected', 'pending'),
+    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('was_flagged', true),
+    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('reply_sent', true),
   ]);
 
   // Score de délivrabilité = % inbox sur toutes les interactions résolues
@@ -131,7 +137,7 @@ export default async function Dashboard() {
             {(emailCount30d ?? 0).toLocaleString('fr-FR')}
           </div>
           <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '12px', color: '#A89F94', marginTop: '8px' }}>
-            {resolved} résolue{resolved > 1 ? 's' : ''} · {(emailCount30d ?? 0) - resolved} en attente
+            {inbox} inbox · {spam} spam · {notFound} introuvable{notFound > 1 ? 's' : ''}
           </div>
         </div>
 
@@ -157,6 +163,26 @@ export default async function Dashboard() {
             {spam} email{spam > 1 ? 's' : ''} sur {resolved} résolu{resolved > 1 ? 's' : ''}
           </div>
         </div>
+      </div>
+
+      {/* Signaux d'engagement */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '16px' }}>
+        {[
+          { icon: 'ph-arrow-u-up-left', label: 'Sortis du spam / onglets', value: rescuedCount ?? 0, color: '#2FA572', bg: '#EAF6EF', desc: 'emails déplacés vers la boîte principale' },
+          { icon: 'ph-star',            label: 'Marqués importants',        value: flaggedCount ?? 0, color: '#E5853C', bg: '#FDF1E5', desc: 'signal fort envoyé à Gmail' },
+          { icon: 'ph-arrow-bend-up-left', label: 'Threads créés',         value: replyCount ?? 0,   color: '#6E84D6', bg: '#ECEFFE', desc: 'réponses générées et envoyées' },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#fff', border: '1px solid #ECE7E0', borderRadius: '16px', padding: '20px 22px', boxShadow: '0 1px 2px rgba(40,28,16,0.04)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ width: '44px', height: '44px', borderRadius: '12px', background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <i className={`ph ${s.icon}`} style={{ fontSize: '22px', color: s.color }} />
+            </span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '12px', color: '#857C71', marginBottom: '4px' }}>{s.label}</div>
+              <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 800, fontSize: '24px', color: '#241F1B', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '11px', color: '#B0A89D', marginTop: '3px' }}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Chart + Donut */}
@@ -275,10 +301,10 @@ export default async function Dashboard() {
                 return (
                   <tr key={i} style={{ borderTop: '1px solid #F4EFE7' }}>
                     <td style={{ padding: '13px 0', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '13px', color: '#2C2824' }}>
-                      {String(row.sender_id).slice(0, 8)}…
+                      {(row.sender as any)?.email ?? '—'}
                     </td>
                     <td style={{ padding: '13px 0', fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '13px', color: '#6B635A' }}>
-                      {String(row.receiver_id).slice(0, 8)}…
+                      {(row.receiver as any)?.email ?? '—'}
                     </td>
                     <td style={{ padding: '13px 0' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: badge.bg, color: badge.color, borderRadius: '999px', padding: '3px 9px', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '12px' }}>
