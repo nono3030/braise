@@ -29,7 +29,8 @@ export default async function Boxes() {
         supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(interactionsFilter),
         supabaseAdmin.from('interactions').select('sender_id, receiver_id, status_detected').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(interactionsFilter),
       ])
-    : [{ count: 0, data: null, error: null }, { count: null, data: null, error: null }];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    : [{ count: 0 }, { data: null }] as any;
 
   const activeCount = accounts?.filter(a => a.status === 'active').length ?? 0;
   const total = accounts?.length ?? 0;
