@@ -7,6 +7,7 @@ export default function LoginPage() {
     const [mode, setMode] = useState<'signin' | 'signup'>('signin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [firstName, setFirstName] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
         const { error } = mode === 'signin'
             ? await supabase.auth.signInWithPassword({ email, password })
-            : await supabase.auth.signUp({ email, password });
+            : await supabase.auth.signUp({ email, password, options: { data: { first_name: firstName, full_name: firstName } } });
 
         if (error) {
             setError(error.message);
@@ -88,6 +89,22 @@ export default function LoginPage() {
                     </div>
 
                     <form onSubmit={handleSubmit}>
+                        {mode === 'signup' && (
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '13px', color: '#3A332C', marginBottom: '7px' }}>
+                                    Prénom
+                                </label>
+                                <input
+                                    type="text"
+                                    value={firstName}
+                                    onChange={e => setFirstName(e.target.value)}
+                                    placeholder="Arnaud"
+                                    required={mode === 'signup'}
+                                    style={{ width: '100%', background: '#FAF7F2', border: '1px solid #E6E1D9', borderRadius: '11px', padding: '12px 14px', fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '14px', color: '#2C2824', outline: 'none', boxSizing: 'border-box' }}
+                                />
+                            </div>
+                        )}
+
                         <div style={{ marginBottom: '16px' }}>
                             <label style={{ display: 'block', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '13px', color: '#3A332C', marginBottom: '7px' }}>
                                 Adresse email
