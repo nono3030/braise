@@ -26,29 +26,44 @@ export default async function Dashboard() {
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   ).slice(0, 1);
 
-  const [
-    { count: emailCount30d },
-    { count: spamCount },
-    { count: inboxCount },
-    { count: notFoundCount },
-    { count: resolvedCount },
-    { data: recentInteractions },
-    { data: interactions30d },
-    { count: rescuedCount },
-    { count: flaggedCount },
-    { count: replyCount },
-  ] = iFilter ? await Promise.all([
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Spam').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Inbox').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'NotFound').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).neq('status_detected', 'pending').or(iFilter),
-    supabaseAdmin.from('interactions').select('sender:accounts!sender_id(email), receiver:accounts!receiver_id(email), status_detected, created_at').neq('status_detected', 'pending').order('created_at', { ascending: false }).limit(8).or(iFilter),
-    supabaseAdmin.from('interactions').select('status_detected, created_at').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).not('source_folder', 'ilike', '%inbox%').not('source_folder', 'is', null).neq('status_detected', 'pending').or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('was_flagged', true).or(iFilter),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('reply_sent', true).or(iFilter),
-  ]) : Array(10).fill({ count: 0, data: null, error: null });
+  type RecentRow = { sender: { email: string } | null; receiver: { email: string } | null; status_detected: string; created_at: string };
+  type DailyRow = { status_detected: string; created_at: string };
+
+  let emailCount30d: number | null = 0;
+  let spamCount: number | null = 0;
+  let inboxCount: number | null = 0;
+  let notFoundCount: number | null = 0;
+  let resolvedCount: number | null = 0;
+  let recentInteractions: RecentRow[] | null = null;
+  let interactions30d: DailyRow[] | null = null;
+  let rescuedCount: number | null = 0;
+  let flaggedCount: number | null = 0;
+  let replyCount: number | null = 0;
+
+  if (iFilter) {
+    const results = await Promise.all([
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Spam').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'Inbox').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('status_detected', 'NotFound').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).neq('status_detected', 'pending').or(iFilter),
+      supabaseAdmin.from('interactions').select('sender:accounts!sender_id(email), receiver:accounts!receiver_id(email), status_detected, created_at').neq('status_detected', 'pending').order('created_at', { ascending: false }).limit(8).or(iFilter),
+      supabaseAdmin.from('interactions').select('status_detected, created_at').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).not('source_folder', 'ilike', '%inbox%').not('source_folder', 'is', null).neq('status_detected', 'pending').or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('was_flagged', true).or(iFilter),
+      supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).eq('reply_sent', true).or(iFilter),
+    ]);
+    emailCount30d  = results[0].count;
+    spamCount      = results[1].count;
+    inboxCount     = results[2].count;
+    notFoundCount  = results[3].count;
+    resolvedCount  = results[4].count;
+    recentInteractions = results[5].data as RecentRow[] | null;
+    interactions30d    = results[6].data as DailyRow[] | null;
+    rescuedCount   = results[7].count;
+    flaggedCount   = results[8].count;
+    replyCount     = results[9].count;
+  }
 
   // Score de délivrabilité = % inbox sur toutes les interactions résolues
   const resolved = resolvedCount ?? 0;
