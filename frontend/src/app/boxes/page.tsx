@@ -37,7 +37,7 @@ export default async function Boxes() {
 
   // Score par boîte : % inbox sur les interactions résolues où elle est sender ou receiver
   function scoreForAccount(accountId: string): number {
-    const accountInteractions = interactions?.filter(
+    const accountInteractions = typedInteractions?.filter(
       r => r.sender_id === accountId || r.receiver_id === accountId
     ) ?? [];
     if (accountInteractions.length === 0) return 0;
@@ -46,8 +46,9 @@ export default async function Boxes() {
   }
 
   // Score moyen global
-  const resolved = interactions?.length ?? 0;
-  const inboxTotal = interactions?.filter(r => r.status_detected === 'Inbox').length ?? 0;
+  const typedInteractions = interactions as { sender_id: string; receiver_id: string; status_detected: string }[] | null;
+  const resolved = typedInteractions?.length ?? 0;
+  const inboxTotal = typedInteractions?.filter(r => r.status_detected === 'Inbox').length ?? 0;
   const avgScore = resolved > 0 ? Math.round((inboxTotal / resolved) * 100) : 0;
 
   const colors = ['#E5853C', '#2FA572', '#6E84D6', '#D95F8B', '#C09A6B'];
