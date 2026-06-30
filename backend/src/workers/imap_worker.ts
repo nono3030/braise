@@ -37,7 +37,9 @@ export async function processImapInbox(data: ImapJobData) {
     });
 
     try {
-        await client.connect();
+        await client.connect().catch((connErr: any) => {
+            throw Object.assign(connErr, { _imapConnFail: true });
+        });
 
         // Dossiers à fouiller : INBOX, onglets Gmail, Spam
         const foldersToSearch = [
@@ -192,7 +194,11 @@ export async function processImapInbox(data: ImapJobData) {
         }
 
         return { found: emailFound, folder: foundInFolder, wasFlagged, replySent };
-    } catch (error) {
+    } catch (error: any) {
+        if (error?._imapConnFail) {
+            console.warn(`[IMAP Worker] ⚠️  Connexion IMAP impossible (${error.message}) — marqué NotFound.`);
+            return { found: false, folder: null, wasFlagged: false, replySent: false };
+        }
         console.error('[IMAP Worker] Erreur:', error);
         throw error;
     }
