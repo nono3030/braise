@@ -8,7 +8,8 @@ export interface SmtpJobData {
     senderEmail: string;
     senderAppPasswordEncrypted: string;
     receiverEmail: string;
-    interactionId: string; // L'ID P2P généré pour tracer l'email
+    interactionId: string;
+    senderTheme?: string;
     subject?: string;
     body?: string;
     inReplyTo?: string;
@@ -44,7 +45,7 @@ export async function sendEmail(data: SmtpJobData) {
 
     // Si on n'a pas fourni de contenu (ce qui est le cas pour un nouvel email), on le génère avec l'IA
     if (!finalSubject || !finalBody) {
-        const generated = await generateNewEmail();
+        const generated = await generateNewEmail(data.senderTheme);
         finalSubject = generated.subject;
         finalBody = generated.body;
     }

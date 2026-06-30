@@ -67,6 +67,7 @@ async function runCycle(sender: Account, receiver: Account): Promise<void> {
         senderAppPasswordEncrypted: sender.app_password_encrypted,
         receiverEmail:              receiver.email,
         interactionId,
+        senderTheme:                sender.theme,
     });
     console.log(`[Worker] ✅ SMTP: ${mail.messageId}`);
 

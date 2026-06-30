@@ -17,6 +17,7 @@ export interface Account {
   current_daily_emails: number;
   created_at: string;
   updated_at: string;
+  theme?: string;
 }
 
 export interface Interaction {

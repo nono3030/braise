@@ -8,6 +8,7 @@ export default function Connect() {
 
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
+    const theme = (formData.get('theme') as string) || null;
 
     if (!email || !password) return;
 
@@ -15,7 +16,7 @@ export default function Connect() {
 
     const { error } = await supabaseAdmin
       .from('accounts')
-      .insert({ email, app_password_encrypted: encryptedPassword });
+      .insert({ email, app_password_encrypted: encryptedPassword, theme });
 
     if (error) throw new Error(error.message);
 
@@ -105,6 +106,22 @@ export default function Connect() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Thématique */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontFamily: 'var(--font-jakarta)', fontWeight: 600, fontSize: '13px', color: '#3A332C', marginBottom: '7px' }}>
+                Thématique <span style={{ color: '#A89F94', fontWeight: 500 }}>(optionnel)</span>
+              </label>
+              <input
+                type="text"
+                name="theme"
+                placeholder="Ex : SaaS de gestion RH, Agence SEO e-commerce, Consultant freelance…"
+                style={{ width: '100%', background: '#FAF7F2', border: '1px solid #E6E1D9', borderRadius: '11px', padding: '11px 14px', fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '14px', color: '#2C2824', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <p style={{ margin: '7px 0 0', fontFamily: 'var(--font-jakarta)', fontWeight: 500, fontSize: '12px', color: '#A89F94', lineHeight: 1.5 }}>
+                L&apos;IA utilisera ce contexte pour rédiger des emails cohérents avec votre secteur.
+              </p>
             </div>
 
             {/* Password */}
