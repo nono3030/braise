@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 
 const NAV = [
   { href: '/', label: 'Accueil', icon: 'ph-house' },
@@ -11,17 +12,32 @@ const NAV = [
   { href: '/connect', label: 'Connexion email', icon: 'ph-plugs' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ userEmail }: { userEmail: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const w = collapsed ? '78px' : '264px';
+
+  const initials = userEmail
+    ? userEmail.slice(0, 2).toUpperCase()
+    : 'BR';
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
 
   return (
     <aside style={{ width: w, flexShrink: 0, background: '#fff', borderRight: '1px solid #ECE7E0', display: 'flex', flexDirection: 'column', padding: '18px 14px', transition: 'width 0.2s ease' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 6px 4px', marginBottom: '22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0 }}>
-          {/* Logo */}
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#E5853C', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '2.5px', paddingBottom: '9px', flexShrink: 0, boxShadow: '0 2px 6px rgba(207,118,46,0.35)' }}>
             <span style={{ width: '4px', height: '8px', background: '#fff', borderRadius: '1.5px', opacity: 0.65 }} />
             <span style={{ width: '4px', height: '12.5px', background: '#fff', borderRadius: '1.5px', opacity: 0.82 }} />
@@ -57,12 +73,28 @@ export default function Sidebar() {
       </nav>
 
       {/* User */}
-      <div style={{ marginTop: 'auto', borderTop: '1px solid #EFEAE2', paddingTop: '14px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-        <div style={{ width: '38px', height: '38px', borderRadius: '11px', background: 'linear-gradient(135deg,#3B3530,#2C2824)', color: '#F4D9BE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-jakarta)', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>AM</div>
-        {!collapsed && <div>
-          <div style={{ fontFamily: 'var(--font-jakarta)', fontSize: '13.5px', fontWeight: 600, color: '#2C2824', whiteSpace: 'nowrap' }}>Arnaud Mercier</div>
-          <div style={{ fontFamily: 'var(--font-jakarta)', fontSize: '11.5px', fontWeight: 500, color: '#A89F94', whiteSpace: 'nowrap' }}>Plan Pro · 3 boîtes</div>
-        </div>}
+      <div style={{ marginTop: 'auto', borderTop: '1px solid #EFEAE2', paddingTop: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '11px', background: 'linear-gradient(135deg,#3B3530,#2C2824)', color: '#F4D9BE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-jakarta)', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+            {initials}
+          </div>
+          {!collapsed && (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-jakarta)', fontSize: '13px', fontWeight: 600, color: '#2C2824', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {userEmail}
+              </div>
+            </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={handleSignOut}
+              title="Se déconnecter"
+              style={{ width: '30px', height: '30px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', color: '#A89F94', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            >
+              <i className="ph ph-sign-out" style={{ fontSize: '18px' }} />
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );
