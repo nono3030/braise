@@ -12,9 +12,10 @@ export default async function Home() {
     ?? user?.email?.split('@')[0]
     ?? 'vous';
 
+  const userId = user?.id;
   const [{ count: boxCount }, { data: wsRow }] = await Promise.all([
-    supabaseAdmin.from('accounts').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabaseAdmin.from('warmup_settings').select('id').limit(1).single(),
+    supabaseAdmin.from('accounts').select('*', { count: 'exact', head: true }).eq('status', 'active').eq('user_id', userId ?? ''),
+    supabaseAdmin.from('warmup_settings').select('id').eq('user_id', userId ?? '').limit(1).single(),
   ]);
 
   const hasBoxes    = (boxCount ?? 0) > 0;

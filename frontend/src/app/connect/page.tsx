@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { createSupabaseServer } from '@/lib/supabase-server';
 import { encrypt } from '@/lib/encryption';
 
 export default function Connect() {
@@ -12,11 +13,15 @@ export default function Connect() {
 
     if (!email || !password) return;
 
+    const supabase = await createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const encryptedPassword = encrypt(password);
 
     const { error } = await supabaseAdmin
       .from('accounts')
-      .insert({ email, app_password_encrypted: encryptedPassword, theme });
+      .insert({ email, app_password_encrypted: encryptedPassword, theme, user_id: user.id });
 
     if (error) throw new Error(error.message);
 

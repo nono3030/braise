@@ -1,21 +1,35 @@
 export const dynamic = 'force-dynamic';
 
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { createSupabaseServer } from '@/lib/supabase-server';
 import Link from 'next/link';
 
 export default async function Boxes() {
+  const supabase = await createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id ?? '';
+
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [
-    { data: accounts },
-    { count: emailCount30d },
-    { data: interactions },
-  ] = await Promise.all([
-    supabaseAdmin.from('accounts').select('*').order('created_at', { ascending: false }),
-    supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
-    supabaseAdmin.from('interactions').select('sender_id, receiver_id, status_detected').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending'),
-  ]);
+  const { data: accounts } = await supabaseAdmin
+    .from('accounts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  const accountIds = accounts?.map(a => a.id) ?? [];
+
+  const interactionsFilter = accountIds.length > 0
+    ? `sender_id.in.(${accountIds.join(',')}),receiver_id.in.(${accountIds.join(',')})`
+    : null;
+
+  const [{ count: emailCount30d }, { data: interactions }] = interactionsFilter
+    ? await Promise.all([
+        supabaseAdmin.from('interactions').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(interactionsFilter),
+        supabaseAdmin.from('interactions').select('sender_id, receiver_id, status_detected').gte('created_at', thirtyDaysAgo.toISOString()).neq('status_detected', 'pending').or(interactionsFilter),
+      ])
+    : [{ count: 0, data: null, error: null }, { count: null, data: null, error: null }];
 
   const activeCount = accounts?.filter(a => a.status === 'active').length ?? 0;
   const total = accounts?.length ?? 0;
