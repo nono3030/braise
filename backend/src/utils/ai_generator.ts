@@ -41,27 +41,22 @@ export async function generateNewEmail(): Promise<GeneratedEmail> {
         const cleanedResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanedResponse) as GeneratedEmail;
     } catch (error: any) {
-        // Fallback si quota dépassé ou erreur API — le POC continue quand même
-        if (error?.status === 429 || error?.status === 404) {
-            console.warn('[AI Generator] ⚠️  Quota ou modèle indisponible — utilisation du contenu de fallback.');
-            const subjects = [
-                'Demande de devis pour votre prestation',
-                'Question concernant votre offre de services',
-                'Prise de contact suite à votre présentation',
-                'Disponibilité pour un échange cette semaine ?',
-            ];
-            const bodies = [
-                'Bonjour,\n\nJe reviens vers vous suite à notre échange. Pourriez-vous me faire parvenir votre proposition commerciale ?\n\nCordialement,',
-                'Bonjour,\n\nJe souhaiterais obtenir plus d\'informations concernant vos services. Seriez-vous disponible pour un appel cette semaine ?\n\nBien à vous,',
-                'Bonjour,\n\nMerci pour votre message. Je serais ravi d\'en discuter plus en détail. Quand êtes-vous disponible ?\n\nCordialement,',
-            ];
-            return {
-                subject: subjects[Math.floor(Math.random() * subjects.length)],
-                body: bodies[Math.floor(Math.random() * bodies.length)],
-            };
-        }
-        console.error('[AI Generator] Erreur lors de la génération de l\'email:', error);
-        throw error;
+        console.warn('[AI Generator] ⚠️  Erreur API Gemini — fallback contenu statique.', error?.status ?? error?.message ?? '');
+        const subjects = [
+            'Demande de devis pour votre prestation',
+            'Question concernant votre offre de services',
+            'Prise de contact suite à votre présentation',
+            'Disponibilité pour un échange cette semaine ?',
+        ];
+        const bodies = [
+            'Bonjour,\n\nJe reviens vers vous suite à notre échange. Pourriez-vous me faire parvenir votre proposition commerciale ?\n\nCordialement,',
+            'Bonjour,\n\nJe souhaiterais obtenir plus d\'informations concernant vos services. Seriez-vous disponible pour un appel cette semaine ?\n\nBien à vous,',
+            'Bonjour,\n\nMerci pour votre message. Je serais ravi d\'en discuter plus en détail. Quand êtes-vous disponible ?\n\nCordialement,',
+        ];
+        return {
+            subject: subjects[Math.floor(Math.random() * subjects.length)],
+            body: bodies[Math.floor(Math.random() * bodies.length)],
+        };
     }
 }
 
@@ -89,14 +84,10 @@ export async function generateReplyEmail(originalSubject: string): Promise<Gener
         const cleanedResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanedResponse) as GeneratedEmail;
     } catch (error: any) {
-        if (error?.status === 429 || error?.status === 404) {
-            console.warn('[AI Generator] ⚠️  Quota ou modèle indisponible — utilisation du contenu de fallback.');
-            return {
-                subject: originalSubject.startsWith('Re:') ? originalSubject : `Re: ${originalSubject}`,
-                body: 'Bonjour,\n\nMerci pour votre message. C\'est bien noté de mon côté. Je reviendrai vers vous rapidement.\n\nBien à vous,',
-            };
-        }
-        console.error('[AI Generator] Erreur lors de la génération de la réponse:', error);
-        throw error;
+        console.warn('[AI Generator] ⚠️  Erreur API Gemini — fallback contenu statique.', error?.status ?? error?.message ?? '');
+        return {
+            subject: originalSubject.startsWith('Re:') ? originalSubject : `Re: ${originalSubject}`,
+            body: 'Bonjour,\n\nMerci pour votre message. C\'est bien noté de mon côté. Je reviendrai vers vous rapidement.\n\nBien à vous,',
+        };
     }
 }
