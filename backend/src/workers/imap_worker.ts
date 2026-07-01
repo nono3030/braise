@@ -1,6 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { Worker, Job } from 'bullmq';
-import { resolve4 } from 'dns/promises';
+import { promises as dnsPromises } from 'dns';
 import { decrypt } from '../utils/encryption';
 import { generateReplyEmail } from '../utils/ai_generator';
 import { sendEmail } from './smtp_worker';
@@ -24,7 +24,7 @@ export async function processImapInbox(data: ImapJobData) {
     const appPassword = decrypt(data.receiverAppPasswordEncrypted);
 
     // Pré-résolution IPv4 — Railway ne supporte pas IPv6 sortant
-    const imapHost = await resolve4('imap.gmail.com')
+    const imapHost = await dnsPromises.resolve4('imap.gmail.com')
         .then(addrs => addrs[0])
         .catch(() => 'imap.gmail.com');
 
