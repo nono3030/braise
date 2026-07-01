@@ -39,6 +39,7 @@ export async function sendEmail(data: SmtpJobData) {
         host: smtpHost,
         port: 465,
         secure: true,
+        connectionTimeout: 20_000,
         tls: { servername: 'smtp.gmail.com' },
         auth: {
             user: data.senderEmail,

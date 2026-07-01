@@ -62,14 +62,21 @@ async function runCycle(sender: Account, receiver: Account): Promise<void> {
     const interactionId: string = interaction.id;
 
     // SMTP
-    const mail = await sendEmail({
-        senderEmail:                sender.email,
-        senderAppPasswordEncrypted: sender.app_password_encrypted,
-        receiverEmail:              receiver.email,
-        interactionId,
-        senderTheme:                sender.theme,
-    });
-    console.log(`[Worker] ✅ SMTP: ${mail.messageId}`);
+    let mail: Awaited<ReturnType<typeof sendEmail>>;
+    try {
+        mail = await sendEmail({
+            senderEmail:                sender.email,
+            senderAppPasswordEncrypted: sender.app_password_encrypted,
+            receiverEmail:              receiver.email,
+            interactionId,
+            senderTheme:                sender.theme,
+        });
+        console.log(`[Worker] ✅ SMTP: ${mail.messageId}`);
+    } catch (smtpErr: any) {
+        console.warn(`[Worker] ⚠️  SMTP échoué (${smtpErr.message}) — interaction annulée.`);
+        await supabase.from('interactions').update({ status_detected: 'NotFound' }).eq('id', interactionId);
+        return;
+    }
 
     // Incrémenter compteur journalier
     const { data: acc } = await supabase.from('accounts').select('current_daily_emails').eq('id', sender.id).single();
