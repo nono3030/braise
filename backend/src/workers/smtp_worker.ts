@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { Worker, Job } from 'bullmq';
+import { promises as dnsPromises } from 'dns';
 import { decrypt } from '../utils/encryption';
 import { generateNewEmail } from '../utils/ai_generator';
 
@@ -30,11 +31,15 @@ export async function sendEmail(data: SmtpJobData) {
 
     // Configuration SMTP générique (Gmail, Outlook, etc.)
     // À ajuster selon le fournisseur via une logique de détection
+    const smtpHost = await dnsPromises.resolve4('smtp.gmail.com')
+        .then(addrs => addrs[0])
+        .catch(() => 'smtp.gmail.com');
+
     const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: smtpHost,
         port: 465,
         secure: true,
-        family: 4, // Force IPv4 — Railway ne supporte pas IPv6 sortant
+        tls: { servername: 'smtp.gmail.com' },
         auth: {
             user: data.senderEmail,
             pass: appPassword,
