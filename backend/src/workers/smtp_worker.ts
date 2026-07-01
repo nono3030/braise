@@ -31,9 +31,10 @@ export async function sendEmail(data: SmtpJobData) {
     // Configuration SMTP générique (Gmail, Outlook, etc.)
     // À ajuster selon le fournisseur via une logique de détection
     const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com', // Exemple pour Gmail
+        host: 'smtp.gmail.com',
         port: 465,
-        secure: true, // true pour 465, false pour d'autres ports
+        secure: true,
+        family: 4, // Force IPv4 — Railway ne supporte pas IPv6 sortant
         auth: {
             user: data.senderEmail,
             pass: appPassword,

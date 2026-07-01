@@ -1,5 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { Worker, Job } from 'bullmq';
+import { resolve4 } from 'dns/promises';
 import { decrypt } from '../utils/encryption';
 import { generateReplyEmail } from '../utils/ai_generator';
 import { sendEmail } from './smtp_worker';
@@ -22,18 +23,21 @@ const connection = {
 export async function processImapInbox(data: ImapJobData) {
     const appPassword = decrypt(data.receiverAppPasswordEncrypted);
 
-    // Configuration IMAP générique
+    // Pré-résolution IPv4 — Railway ne supporte pas IPv6 sortant
+    const imapHost = await resolve4('imap.gmail.com')
+        .then(addrs => addrs[0])
+        .catch(() => 'imap.gmail.com');
+
     const client = new ImapFlow({
-        host: 'imap.gmail.com',
+        host: imapHost,
         port: 993,
         secure: true,
+        tls: { servername: 'imap.gmail.com' }, // SNI correct malgré l'IP directe
         auth: {
             user: data.receiverEmail,
             pass: appPassword,
         },
         logger: false,
-        // Pas de socketTimeout custom — le défaut imapflow (illimité) est plus sûr
-        // car les commandes IMAP sur Gmail peuvent prendre du temps
     });
 
     try {
