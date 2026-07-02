@@ -261,11 +261,39 @@ async function cleanupStalePending(): Promise<void> {
     }
 }
 
+async function testSmtp() {
+    console.log('\n[Test] 🧪 Mode test SMTP activé...');
+    const { data: accounts } = await supabase.from('accounts').select('*').eq('status', 'active').limit(2);
+    if (!accounts || accounts.length < 2) {
+        console.log('[Test] ❌ Pas assez de comptes actifs pour le test.');
+        return;
+    }
+    const [sender, receiver] = accounts as Account[];
+    console.log(`[Test] Envoi de ${sender.email} → ${receiver.email}`);
+    try {
+        const mail = await sendEmail({
+            senderEmail: sender.email,
+            senderAppPasswordEncrypted: sender.app_password_encrypted,
+            receiverEmail: receiver.email,
+            interactionId: 'test-' + Date.now(),
+            senderTheme: sender.theme,
+        });
+        console.log(`[Test] ✅ SMTP OK: ${mail.messageId}`);
+    } catch (err: any) {
+        console.error(`[Test] ❌ SMTP FAILED: ${err.message}`);
+    }
+}
+
 async function main() {
     console.log('🔥 Braise Scheduler (sans Redis)');
     console.log(`   Fenêtre    : ${HOUR_START}h – ${HOUR_END}h`);
     console.log(`   Délai IMAP : ${IMAP_WAIT / 1000}s`);
     console.log(`   Paramètres : lus depuis Supabase (warmup_settings)\n`);
+
+    if (process.env.TEST_SMTP === 'true') {
+        await testSmtp();
+        return;
+    }
 
     await cleanupStalePending();
     await scheduleDay();
