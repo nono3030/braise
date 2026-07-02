@@ -32,8 +32,8 @@ export async function sendEmail(data: SmtpJobData) {
     // À ajuster selon le fournisseur via une logique de détection
     const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        port: 587,
+        secure: false, // STARTTLS
         connectionTimeout: 20_000,
         auth: {
             user: data.senderEmail,
