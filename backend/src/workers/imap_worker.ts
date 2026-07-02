@@ -1,6 +1,5 @@
 import { ImapFlow } from 'imapflow';
 import { Worker, Job } from 'bullmq';
-import { promises as dnsPromises } from 'dns';
 import { decrypt } from '../utils/encryption';
 import { generateReplyEmail } from '../utils/ai_generator';
 import { sendEmail } from './smtp_worker';
@@ -23,16 +22,10 @@ const connection = {
 export async function processImapInbox(data: ImapJobData) {
     const appPassword = decrypt(data.receiverAppPasswordEncrypted);
 
-    // Pré-résolution IPv4 — Railway ne supporte pas IPv6 sortant
-    const imapHost = await dnsPromises.resolve4('imap.gmail.com')
-        .then(addrs => addrs[0])
-        .catch(() => 'imap.gmail.com');
-
     const client = new ImapFlow({
-        host: imapHost,
+        host: 'imap.gmail.com',
         port: 993,
         secure: true,
-        tls: { servername: 'imap.gmail.com' }, // SNI correct malgré l'IP directe
         auth: {
             user: data.receiverEmail,
             pass: appPassword,
