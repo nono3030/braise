@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "start": "node dist/scheduler.js",
+    "start": "node --dns-result-order=ipv4first dist/scheduler.js",
     "dev": "nodemon --exec ts-node src/scheduler.ts",
     "poc": "ts-node src/poc.ts"
   },

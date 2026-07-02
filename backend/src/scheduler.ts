@@ -1,6 +1,4 @@
 import 'dotenv/config';
-import { setDefaultResultOrder } from 'dns';
-setDefaultResultOrder('ipv4first'); // Railway ne supporte pas IPv6 sortant
 import { supabase, Account } from './utils/database';
 import { sendEmail } from './workers/smtp_worker';
 import { processImapInbox } from './workers/imap_worker';
